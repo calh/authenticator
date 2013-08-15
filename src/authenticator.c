@@ -12,12 +12,14 @@ extern void showEditTimeZone();
 
 #define SHA1_SIZE 20
 
-#define MY_UUID { 0xA4, 0xA6, 0x13, 0xB5, 0x8A, 0x6B, 0x4F, 0xF0, 0xBD, 0x80, 0x00, 0x38, 0xA1, 0x51, 0xCD, 0x86 }
 PBL_APP_INFO(MY_UUID,
-		"Authenticator", "pokey9000/IEF/rigel314",
+		"Authenticator", "pokey9000/IEF/rigel314/FBS",
 		1, 1, /* App version */
 		RESOURCE_ID_IMAGE_MENU_ICON,
-		APP_INFO_STANDARD_APP);
+    /* Changed from APP_INFO_STANDARD_APP: I like fewer
+     * button pushes to view a code
+     */
+    APP_INFO_WATCH_FACE);
 
 Window window;
 

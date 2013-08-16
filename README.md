@@ -36,7 +36,7 @@ label:secret
 * cd /path/to/PebbleSDK/Pebble/tools
 * ./create\_pebble\_project.py --symlink-only ../sdk /path/to/authenticator
 
-8. Run ./waf configure 
+8. cd /path/to/authenticator and Run ./waf configure 
 
 9. Build the .pbw file with ./waf build  (copy build/authenticator.pbw to your phone and install)
 

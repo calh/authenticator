@@ -13,7 +13,7 @@ extern void showEditTimeZone();
 #define SHA1_SIZE 20
 
 PBL_APP_INFO(MY_UUID,
-		"Authenticator", "pokey9000/IEF/rigel314/FBS",
+		APP_NAME, "pokey9000/IEF/rigel314/FBS",
 		1, 1, /* App version */
 		RESOURCE_ID_IMAGE_MENU_ICON,
     /* Changed from APP_INFO_STANDARD_APP: I like fewer
@@ -236,28 +236,15 @@ uint8_t* sha1_resultHmac(sha1nfo *s) {
 
 // return seconds since epoch compensating for Pebble's lack of location
 // independent GMT
-
 int curSeconds=0;
-
 uint32_t get_epoch_seconds() {
-	PblTm current_time;
-	uint32_t unix_time;
-	get_time(&current_time);
-	
-// shamelessly stolen from WhyIsThisOpen's Unix Time source: http://forums.getpebble.com/discussion/4324/watch-face-unix-time
-	/* Convert time to seconds since epoch. */
-	//curSeconds=current_time.tm_sec;
-	unix_time = ((0-tZone)*3600) + /* time zone offset */          /* 0-tZone+current_time.tm_isdst if it ever starts working. */
-		+ current_time.tm_sec /* start with seconds */
-		+ current_time.tm_min*60 /* add minutes */
-		+ current_time.tm_hour*3600 /* add hours */
-		+ current_time.tm_yday*86400 /* add days */
-		+ (current_time.tm_year-70)*31536000 /* add years since 1970 */
-		+ ((current_time.tm_year-69)/4)*86400 /* add a day after leap years, starting in 1973 */                                                                       - ((current_time.tm_year-1)/100)*86400 /* remove a leap day every 100 years, starting in 2001 */                                                               + ((current_time.tm_year+299)/400)*86400; /* add a leap day back every 400 years, starting in 2001*/
-	unix_time /= 30;
-	return unix_time;
+  // Pebble still does not support GMT unix epoch
+  uint32_t unix_time = time(NULL);
+  // add/subtract time zone
+  unix_time -= (tZone * 3600);
+  unix_time /= 30;
+  return unix_time; 
 }
-
 
 void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
 
@@ -318,7 +305,6 @@ void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
 		text_layer_set_text(&label, labelText);
 		text_layer_set_text(&token, tokenText);
 	}
-
 	if ((curSeconds>=0) && (curSeconds<30)) {
 		text_layer_set_text(&ticker, itoa((30-curSeconds),10));
 	} else {

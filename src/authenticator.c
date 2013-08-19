@@ -358,25 +358,24 @@ void handle_init(AppContextRef ctx) {
 
 	tZone = DEFAULT_TIME_ZONE;
 	changed = true;
-
 	window_init(&window, "auth");
 	window_stack_push(&window, true /* Animated */);
 	window_set_background_color(&window, GColorBlack);
 
 	// Init the identifier label
-	text_layer_init(&label, GRect(5, 30, 144-4, 168-44));
+	text_layer_init(&label, GRect(5, 0, 144-4, 248));
 	text_layer_set_text_color(&label, GColorWhite);
 	text_layer_set_background_color(&label, GColorClear);
 	text_layer_set_font(&label, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
 
 	// Init the token label
-	text_layer_init(&token, GRect(10, 60, 144-4 /* width */, 168-44 /* height */));
+	text_layer_init(&token, GRect(10, 80, 144-4 /* width */, 168-44 /* height */));
 	text_layer_set_text_color(&token, GColorWhite);
 	text_layer_set_background_color(&token, GColorClear);
-	text_layer_set_font(&token, fonts_get_system_font(FONT_KEY_BITHAM_34_MEDIUM_NUMBERS));
+  text_layer_set_font(&token, fonts_get_system_font(FONT_KEY_BITHAM_34_MEDIUM_NUMBERS));
 
 	// Init the second ticker
-	text_layer_init(&ticker, GRect(60, 120, 144-4 /* width */, 168-44 /* height */));
+	text_layer_init(&ticker, GRect(60, 140, 144-4 /* width */, 20 /* height */));
 	text_layer_set_text_color(&ticker, GColorWhite);
 	text_layer_set_background_color(&ticker, GColorClear);
 	text_layer_set_font(&ticker, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));

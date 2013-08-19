@@ -54,9 +54,10 @@ f = open( "src/configuration.h","w" )
 f.write( "#ifndef _CONFIGURATION_H_\n#define _CONFIGURATION_H_\n" )
 f.write( "#define NUM_SECRETS %i\n" % len(labels) )
 f.write( "#define DEFAULT_TIME_ZONE %s\n" % time_zone )
-f.write( "#define APP_NAME \"Authenticator %s\"\n" % labels[0])
+# Truncate app name to 32 bytes
+f.write( "#define APP_NAME \"Authenticator %s\"\n" % labels[0][0:14])
 f.write( "#define MY_UUID { %s }\n" % genAppId( secrets[0]) )
-f.write( "char otplabels[NUM_SECRETS][10] = {\n    " )
+f.write( "char otplabels[NUM_SECRETS][30] = {\n    " )
 for label in labels:
   f.write( "\"%s\"," % label )
 f.write( "\n};\n" )

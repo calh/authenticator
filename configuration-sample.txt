@@ -2,4 +2,5 @@
 tz:+1
 # define your secrets, one per line, in the form
 # name:secret
+#  the [name] section will be truncated to 32 characters
 fake:pskfb2vhfiegni2h

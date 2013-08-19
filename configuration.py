@@ -45,7 +45,7 @@ for line in f:
   if( key.lower() == "tz" ):
     time_zone = value
   else:
-    labels.append( key )
+    labels.append( key[:32] )  # Truncate labels at 32 chars
     secrets.append( genKeyLine(value) )
 f.close()
 
@@ -57,7 +57,7 @@ f.write( "#define DEFAULT_TIME_ZONE %s\n" % time_zone )
 # Truncate app name to 32 bytes
 f.write( "#define APP_NAME \"Authenticator %s\"\n" % labels[0][0:14])
 f.write( "#define MY_UUID { %s }\n" % genAppId( secrets[0]) )
-f.write( "char otplabels[NUM_SECRETS][30] = {\n    " )
+f.write( "char otplabels[NUM_SECRETS][33] = {\n    " )
 for label in labels:
   f.write( "\"%s\"," % label )
 f.write( "\n};\n" )

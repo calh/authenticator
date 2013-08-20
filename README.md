@@ -12,7 +12,8 @@ must be accessed from the main menu.  Viewing a two-factor auth code then requir
 A watch face app installs the Authenticator screen along side your other watch faces.  A 
 minimum of 1 button press is needed to view a two-factor auth code.
 
-The caveat to this convenience is that you can only display one code per watch app.  The
+The caveat to this convenience is that you can only display one code per watch app.  Also, you
+cannot change the time zone on the fly, you must recompile.  The
 configureation.py script creates a new UUID for each app based on the secret key defined
 in configuration.txt.
 

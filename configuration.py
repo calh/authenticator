@@ -5,6 +5,7 @@
 
 import base64
 import sys
+import hashlib
 
 secrets = []
 labels = []
@@ -26,8 +27,9 @@ def genKeyLine( code ):
 
 # Generate a unique MY_UUID based on the label
 def genAppId(str):
-  str = str.replace(' ','').upper()[0 : 16]
-  bytes = map(ord,str)
+  # Salt MD5 with the string for our 16 bytes
+  bytes = hashlib.md5(str).digest()
+  bytes = map(ord,bytes)
   hex = ["0x%02X" % x for x in bytes]
   return ", ".join(hex)
 

@@ -3,6 +3,8 @@ Authenticator Watch Face
 
 This is a Google Authenticator (Time-Based One-Time Password generator) **watch face app** for the Pebble.
 
+**Check out the [SDK 2.0 version here!!!](https://github.com/calh/authenticator/tree/SDK2)**
+
 Forked off 'authenticator' by IEF, which was forked off 'twostep' by pokey9000, with patches from rigel314 
 
 This is slightly different from the IEF version, which is a standard watch app.  A watch app 

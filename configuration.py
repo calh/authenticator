@@ -69,9 +69,15 @@ appinfo = """{
     "dummy": 0
   },
   "resources": {
-    "media": []
+    "media": [
+      {
+        "type": "font",
+        "name": "FONT_NOT_COURIER_SANS_BOLD_36",
+        "file": "fonts/NotCourierSans-Bold_36.ttf"
+      }
+    ]
   }
-}\n""" % (genAppId( label ), label, label )
+}\n""" % (genAppId( label ), label[:32], label )
 f.write(appinfo)
 
 f = open( "src/configuration.h","w" )

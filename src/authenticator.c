@@ -10,16 +10,10 @@
 Window *window;
 
 TextLayer *label;
-TextLayer *tokenTop;
-TextLayer *tokenBottom;
+TextLayer *tokenLeft;
+TextLayer *tokenRight;
 TextLayer *ticker;
-
-/* if true, tokenTop and tokenBottom are used
- * with a larger font to split the token into
- * two groups of 3 digits.  Set based on the 
- * length of the label
- */
-bool useTwoLayerToken;
+GFont use_font;
 
 #define KEY_TZONE 2
 int tZone;
@@ -232,8 +226,8 @@ uint8_t* sha1_resultHmac(sha1nfo *s) {
 void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
 
   (void) units_changed;
-  char *tokenTextTop = malloc(7);
-  char *tokenTextBottom = malloc(7);
+  char *tokenTextLeft = malloc(4);
+  char *tokenTextRight = malloc(4);
 
   sha1nfo s;
   uint8_t ofs;
@@ -280,20 +274,18 @@ void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
     otp %= DIGITS_TRUNCATE;
     // uncomment to test font sizes with all 0's
     //otp = 0;
-    if ( useTwoLayerToken )
-    {
-      // split the number in two for top & bottom layers
-      snprintf(tokenTextTop, 5, "%03u-", (unsigned int)(otp / 1000)); 
-      snprintf(tokenTextBottom, 4, "%03u", (unsigned int)(otp % 1000)); 
-      text_layer_set_text(tokenTop, tokenTextTop);
-      free(tokenTextTop);
-    }
-    else
-    {
-      snprintf(tokenTextBottom, 7, "%06u", (unsigned int)otp); 
-    }
-    text_layer_set_text(tokenBottom, tokenTextBottom);
-    free(tokenTextBottom);
+    
+    // split the number in two to keep a space in the middle
+    // to assist with chunking the information
+    snprintf(tokenTextLeft, 4, "%03u", 
+        (unsigned int)(otp / 1000));
+    snprintf(tokenTextRight, 4, "%03u", 
+        (unsigned int)(otp % 1000)); 
+
+    text_layer_set_text(tokenLeft, tokenTextLeft);
+    text_layer_set_text(tokenRight, tokenTextRight);
+    free(tokenTextLeft);
+    free(tokenTextRight);
   }
 
   if ((curSeconds>=0) && (curSeconds<30)) {
@@ -307,14 +299,7 @@ void handle_init(void) {
   // get timezone from persistent storage, if found
   tZone = persist_exists(KEY_TZONE) ? persist_read_int(KEY_TZONE) : DEFAULT_TIME_ZONE;
   tZone_orig=tZone ;
-
-  // label length cutoff point that we can split the 
-  // token into two labels
-  if ( strlen(otplabel) < 29 )
-    useTwoLayerToken = true;
-  else
-    useTwoLayerToken = false;
-
+  int tokenPosition = 80;
   changed = true;
 
   window = window_create();
@@ -327,30 +312,31 @@ void handle_init(void) {
   text_layer_set_background_color(label, GColorClear);
   text_layer_set_font(label, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
   text_layer_set_text(label, otplabel);
-
-  // Init the token top label
-  if ( useTwoLayerToken )
-  {
-    tokenTop=text_layer_create(GRect(0, 60, 144 /* width */, 60 /* height */));
-    text_layer_set_text_color(tokenTop, GColorWhite);
-    text_layer_set_background_color(tokenTop, GColorClear);
-    // Bitham 42 bold works well with 3 digits on two lines
-    text_layer_set_font(tokenTop, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
-  }
-
-  if ( useTwoLayerToken )
-    // right justified
-    tokenBottom = text_layer_create(GRect(55, 100, 144 /* width */, 60 /* height */));
-  else
-    // left justified
-    tokenBottom = text_layer_create(GRect(5, 110, 144 /* width */, 60 /* height */));
-  text_layer_set_text_color(tokenBottom, GColorWhite);
-  text_layer_set_background_color(tokenBottom, GColorClear);
-  // Bitham 34 medium works well with 6 digits on a single line
-  if ( useTwoLayerToken )
-    text_layer_set_font(tokenBottom, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
-  else
-    text_layer_set_font(tokenBottom, fonts_get_system_font(FONT_KEY_BITHAM_34_MEDIUM_NUMBERS));
+  text_layer_set_text_alignment(label, GTextAlignmentCenter);
+ 
+  // with short labels, try to center the token vertically
+  if ( strlen(otplabel) < 29 ) 
+    tokenPosition = 65;
+  // Init the token labels (left and right justified)
+  tokenLeft = text_layer_create(GRect(0, tokenPosition, 144 /* width */, 60 /* height */));
+  tokenRight = text_layer_create(GRect(0, tokenPosition, 144 /* width */, 60 /* height */));
+  text_layer_set_text_alignment(tokenRight, GTextAlignmentLeft);
+  text_layer_set_text_color(tokenLeft, GColorWhite);
+  text_layer_set_background_color(tokenLeft, GColorClear);
+  text_layer_set_text_alignment(tokenRight, GTextAlignmentRight);
+  text_layer_set_text_color(tokenRight, GColorWhite);
+  text_layer_set_background_color(tokenRight, GColorClear);
+  // Bitham 34 medium works OK with 6 digits on a single line
+  //text_layer_set_font(tokenLeft, fonts_get_system_font(FONT_KEY_BITHAM_34_MEDIUM_NUMBERS));
+  //text_layer_set_font(tokenRight, fonts_get_system_font(FONT_KEY_BITHAM_34_MEDIUM_NUMBERS));
+  /* Even better!  Found a Courier look-alike that I adjusted to fit perfectly.
+   * Just a little bit of space in the center to help chunk the 6 digits into
+   * 2 groups of 3
+   */
+  text_layer_set_font(tokenLeft, fonts_load_custom_font(
+        resource_get_handle(RESOURCE_ID_FONT_NOT_COURIER_SANS_BOLD_36)));
+  text_layer_set_font(tokenRight, fonts_load_custom_font(
+        resource_get_handle(RESOURCE_ID_FONT_NOT_COURIER_SANS_BOLD_36)));
 
   // Init the second ticker
   ticker=text_layer_create(GRect(60, 140, 144-4 /* width */, 168-44 /* height */));
@@ -362,9 +348,8 @@ void handle_init(void) {
 
   Layer *window_layer=window_get_root_layer(window);
   layer_add_child(window_layer, text_layer_get_layer(label));
-  if ( useTwoLayerToken )
-    layer_add_child(window_layer, text_layer_get_layer(tokenTop));
-  layer_add_child(window_layer, text_layer_get_layer(tokenBottom));
+  layer_add_child(window_layer, text_layer_get_layer(tokenLeft));
+  layer_add_child(window_layer, text_layer_get_layer(tokenRight));
   layer_add_child(window_layer, text_layer_get_layer(ticker));
 
 }
@@ -380,8 +365,8 @@ void handle_deinit(void) {
 
   tick_timer_service_unsubscribe();
   text_layer_destroy(label) ;
-  text_layer_destroy(tokenTop) ;
-  text_layer_destroy(tokenBottom) ;
+  text_layer_destroy(tokenLeft) ;
+  text_layer_destroy(tokenRight) ;
   text_layer_destroy(ticker) ;
   window_destroy(window);
 }

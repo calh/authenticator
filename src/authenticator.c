@@ -15,7 +15,7 @@ TextLayer *tokenRight;
 TextLayer *ticker;
 GFont use_font;
 
-#define KEY_TZONE 2
+#define KEY_TZONE 0
 int tZone;
 int tZone_orig; //used to track config changes
 
@@ -52,17 +52,6 @@ typedef struct sha1nfo {
   uint8_t keyBuffer[BLOCK_LENGTH];
   uint8_t innerHash[HASH_LENGTH];
 } sha1nfo;
-
-/* public API - prototypes - TODO: doxygen*/
-
-/*
-   void sha1_init(sha1nfo *s);
-   void sha1_writebyte(sha1nfo *s, uint8_t data);
-   void sha1_write(sha1nfo *s, const char *data, size_t len);
-   uint8_t* sha1_result(sha1nfo *s);
-   void sha1_initHmac(sha1nfo *s, const uint8_t* key, int keyLength);
-   uint8_t* sha1_resultHmac(sha1nfo *s);
-   */
 
 char* itoa(int val, int base){
   static char buf[32] = {0};
@@ -222,6 +211,27 @@ uint8_t* sha1_resultHmac(sha1nfo *s) {
   return sha1_result(s);
 }
 
+static void appmsg_in_received(DictionaryIterator *received, void *context) {
+
+  Tuple *timezone_offset_tuple = dict_find(received, KEY_TZONE);
+
+  if (timezone_offset_tuple) {
+    int32_t timezone_offset = timezone_offset_tuple->value->int32;
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "recieved tZone: %d", (int)timezone_offset);
+    // Check if the phone's timezone is different from the one we're running
+    if ( timezone_offset != tZone )
+    {
+      tZone = (int) timezone_offset;
+    }
+    // Calculate UTC time
+    /*
+    time_t local, utc;
+    time(&local);
+    utc = local + timezone_offset;
+    */
+  }
+}
+
 /* end sha1.c */
 void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
 
@@ -297,7 +307,13 @@ void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
 
 void handle_init(void) {
   // get timezone from persistent storage, if found
-  tZone = persist_exists(KEY_TZONE) ? persist_read_int(KEY_TZONE) : DEFAULT_TIME_ZONE;
+  if ( persist_exists(KEY_TZONE) )
+  {
+    tZone = persist_read_int(KEY_TZONE);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "tZone read from storage: %d", (int)tZone);
+  }
+  else
+    tZone = DEFAULT_TIME_ZONE;
   tZone_orig=tZone ;
   int tokenPosition = 80;
   changed = true;
@@ -352,15 +368,27 @@ void handle_init(void) {
   layer_add_child(window_layer, text_layer_get_layer(tokenRight));
   layer_add_child(window_layer, text_layer_get_layer(ticker));
 
+  /* init message receiver */
+  app_message_register_inbox_received(appmsg_in_received);
+  const uint32_t inbound_size = 64;
+  const uint32_t outbound_size = 64;
+  app_message_open(inbound_size, outbound_size);
+
 }
 
 void handle_deinit(void) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "deinit called");
 
   //store timezone in persistence storage if needed
-  if (tZone != tZone_orig) {
-    if (tZone == DEFAULT_TIME_ZONE) persist_delete(KEY_TZONE) ;
-    else persist_write_int(KEY_TZONE, tZone) ;
+  if (tZone != tZone_orig) 
+  {
+    if (tZone == DEFAULT_TIME_ZONE) 
+      persist_delete(KEY_TZONE);
+    else 
+    {
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "Wrote tZone value %d to storage", (int)tZone);
+      persist_write_int(KEY_TZONE, tZone);
+    }
   }
 
   tick_timer_service_unsubscribe();

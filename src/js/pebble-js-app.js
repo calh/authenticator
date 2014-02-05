@@ -1,5 +1,7 @@
 function sendTimezoneToWatch() {
-  // Get the number of seconds to add to convert localtime to utc
+  // Retrieve the timezone as an hourly offset from UTC.
+  // retains compatibility with the tZone format used in authenticator.c
+  // and configuration.txt
   var tZone = new Date().getTimezoneOffset() / 60 * -1;
   // Send it to the watch
   console.log("Sending tZone: " + tZone);

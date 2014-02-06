@@ -17,10 +17,11 @@ A few main features which make my version different from the other [forks of Aut
   * Easy for novice users that aren't able to set up or configure a Pebble app
 * Long labels adjust the position of the token
 * Two-factor code uses [NotCourierSans](http://openfontlibrary.org/en/font/notcouriersans) from the Open Font Library
+  * Monospaced Courier-copy font is easy to read
   * The code is split into two chunks of 3 digits separated by some space to assist with chunking the information in your noodle.  
   * This helps you quickly retain the full 6 digits in short term memory and regurgitate them in the text input field
-* Time zone information is retrieved from the phone, and cached in local storage on the Pebble
-  * Default time zone is specified as a compile-time option
+* Time zone information is retrieved from the phone and cached in local storage on the Pebble
+  * Default time zone is specified as a compile-time option  
   * App startup reads from the local storage cache, or compiled timezone for **quick** startups
 
 <img src="screenshots/short_label_example.png" /> &nbsp;&nbsp;
@@ -44,11 +45,13 @@ used instead of the compile-time option.  This ensures that the correct code is 
 immediately after switching to the app.  (It takes a few seconds for Pebble JS to start up)
 
 Since this watch face app is meant to be switched to, then switch back to your main watch face,
-the time zone should always be correct.  (Re-reading the phone time zone every hour isn't 
+the time zone should always be correct.  (Re-reading the phone time zone every hour shouldn't be
 necessary)
 
 Compile and Installation
 ------------------------
+
+If you haven't already, install and setup Pebble SDK 2.0: https://developer.getpebble.com/2/getting-started/
 
 To configure the application you need to create a configuration.txt file.
 
@@ -58,17 +61,26 @@ To configure the application you need to create a configuration.txt file.
 integer offsets from UTC.  (Ex:  Central Daylight Savings is -5)
 
 3. Let's say you have secret key AXIMZYJXITSIOIJVNXOE76PEJQ 
-On most sites, when setting up choose 'show key' when presented with the QR code.
+When setting up two-factor auth on most sites, find a 'show key' option when presented with a QR code.
 
 4. add it to the end of configuration.txt, following the example in the format 
 label:secret
-(You may add only **one** key)
+(You may add only **one** key)  The label is any custom string up to 50 characters to describe this account.
 
-5. Generate the config by running `./configuration.py`
+5. Generate the config by running `./configuration.py`  This creates a new appinfo.json file, and src/configuration.h file
 
-6. Build the .pbw file with `pebble build`
+6. Build the authenticator.pbw file with `pebble build`
 
-7. Install the .pbw file to your phone with `pebble install --phone 192.168.x.x` (Or just copy the build/authenticator.pbw file to your phone and install)
+7. Install the authenticator.pbw file using your phone
+* Using the Pebble SDK
+ * Connect your phone to the same local wifi network that your workstation is on
+ * On the phone's Pebbble app, go to Configuration -> Developer Options and check **Enable Developer Connection**
+ * On the main screen, your IP address is shown below the **Connected** button.  Use that in the command below
+ * Run this command: `pebble install --phone 192.168.x.x` 
+* Copying the file manually
+ * Attach the build/authenticator.pbw file to an email, send it to your phone, and download the attachment.  
+   The Pebble app should pick up the .pbw extension and install it to the watch.
+ * Or copy the build/authenticator.pbw file to your phone and open it with a file viewer
 
 8. The Pebble phone app should show a watch app named with the label provided in configuration.txt
 
@@ -82,8 +94,7 @@ and replace it with a new label and secret key.
 13.  Re-run `pebble build`  and install the new .pbw file with your phone.  It should show up as
 a new watch face with a different name.
 
-The above is assuming you have the Pebble SDK 2.0 installed and setup.
-If not, review: https://developer.getpebble.com/2/getting-started/
+**PRO-TIP**: Checkout [PebbleBits](http://pebblebits.com/firmware/) to create a custom firmware for your Pebble that removes the lame default watch faces!  If you install only the faces you actively use, switching to your two-factor code is much quicker.
 
 Credits 
 -------

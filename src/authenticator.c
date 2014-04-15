@@ -20,6 +20,8 @@ int tZone;
 int tZone_orig; //used to track config changes
 
 bool changed;
+bool resend_js_data;
+bool init_finished;
 
 /* from sha1.c from liboauth */
 
@@ -210,25 +212,101 @@ uint8_t* sha1_resultHmac(sha1nfo *s) {
   for (i=0; i<HASH_LENGTH; i++) sha1_writebyte(s, s->innerHash[i]);
   return sha1_result(s);
 }
+/* If the tzone was not received due to error or timing problem,
+ * send a message back to the js engine to send us the tZone again 
+ */
+/*  WHY DOESN'T THIS WORK!?  Segfaults every time app_message_outbox_send()
+ *  is called!
+ */
+void request_js_resend() 
+{
+  
+  DictionaryIterator *it;
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "request_js_resend (%d)(%d)", init_finished, resend_js_data);
+  //if ( init_finished && resend_js_data )
+  {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Run request_js_resend");
+    app_message_outbox_begin(&it);
+    Tuplet val = TupletInteger(0, 1);
+    dict_write_tuplet(it, &val);
+    app_message_outbox_send();
+  }
+  
+}
+static void store_tzone_pref()
+{
+  //store timezone in persistence storage if needed
+  if (tZone != tZone_orig) 
+  {
+    if (tZone == DEFAULT_TIME_ZONE) 
+      persist_delete(KEY_TZONE);
+    else 
+    {
+      
+      status_t ret = persist_write_int(KEY_TZONE, tZone);
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "Wrote tZone value %d to storage (ret %d)", (int)tZone, (int)ret);
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "Reread tZone: %d", (int)persist_read_int(KEY_TZONE));
+    }
+  }
+}
+static bool read_tzone_pref()
+{
+  if ( persist_exists(KEY_TZONE) )
+  {
+    tZone = persist_read_int(KEY_TZONE);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "tZone read from storage: %d", (int)tZone);
+    return true;
+  }
+  return false;
+}
+char *translate_error(AppMessageResult result) {
+  switch (result) {
+    case APP_MSG_OK: return "APP_MSG_OK";
+    case APP_MSG_SEND_TIMEOUT: return "APP_MSG_SEND_TIMEOUT";
+    case APP_MSG_SEND_REJECTED: return "APP_MSG_SEND_REJECTED";
+    case APP_MSG_NOT_CONNECTED: return "APP_MSG_NOT_CONNECTED";
+    case APP_MSG_APP_NOT_RUNNING: return "APP_MSG_APP_NOT_RUNNING";
+    case APP_MSG_INVALID_ARGS: return "APP_MSG_INVALID_ARGS";
+    case APP_MSG_BUSY: return "APP_MSG_BUSY";
+    case APP_MSG_BUFFER_OVERFLOW: return "APP_MSG_BUFFER_OVERFLOW";
+    case APP_MSG_ALREADY_RELEASED: return "APP_MSG_ALREADY_RELEASED";
+    case APP_MSG_CALLBACK_ALREADY_REGISTERED: return "APP_MSG_CALLBACK_ALREADY_REGISTERED";
+    case APP_MSG_CALLBACK_NOT_REGISTERED: return "APP_MSG_CALLBACK_NOT_REGISTERED";
+    case APP_MSG_OUT_OF_MEMORY: return "APP_MSG_OUT_OF_MEMORY";
+    case APP_MSG_CLOSED: return "APP_MSG_CLOSED";
+    case APP_MSG_INTERNAL_ERROR: return "APP_MSG_INTERNAL_ERROR";
+    default: return "UNKNOWN ERROR";
+  }
+}
+static void out_sent_handler(DictionaryIterator *sent, void *context ) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "out_sent_handler(): message delivered");
+}
+static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "out_failed_handler(): message send fail: %s", translate_error(reason));
+}
 
-static void appmsg_in_received(DictionaryIterator *received, void *context) {
+static void appmsg_dropped(AppMessageResult reason, void *context)
+{
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "in appmsg_dropped(): %s", translate_error(reason));
+  resend_js_data = true;
+  init_finished = true;
+}
 
+static void appmsg_in_received(DictionaryIterator *received, void *context) 
+{
+  init_finished = true;
   Tuple *timezone_offset_tuple = dict_find(received, KEY_TZONE);
-
+  
   if (timezone_offset_tuple) {
     int32_t timezone_offset = timezone_offset_tuple->value->int32;
     APP_LOG(APP_LOG_LEVEL_DEBUG, "recieved tZone: %d", (int)timezone_offset);
+    resend_js_data = false;
     // Check if the phone's timezone is different from the one we're running
     if ( timezone_offset != tZone )
     {
       tZone = (int) timezone_offset;
+      store_tzone_pref();
     }
-    // Calculate UTC time
-    /*
-    time_t local, utc;
-    time(&local);
-    utc = local + timezone_offset;
-    */
   }
 }
 
@@ -246,15 +324,18 @@ void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
   time_t current_time ;
   char sha1_time[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   int curSeconds;
+  //request_js_resend();  //SEGFAULT!
 
   current_time=time(NULL);
   unix_time=current_time + ((0-tZone)*3600) ; //still needed because time() is not GMT
+  //APP_LOG(APP_LOG_LEVEL_DEBUG, "unix_time1: %d", (int)unix_time);  
   unix_time /= 30;
   if (tick_time == NULL) {
     tick_time = localtime(&current_time);
   }
   curSeconds = tick_time->tm_sec;
-
+  //APP_LOG(APP_LOG_LEVEL_DEBUG, "tZone: %d  current_time: %d  unix_time: %d  curSeconds: %d", tZone, (int)current_time, (int)unix_time, curSeconds);
+  
   if(curSeconds == 0 || curSeconds == 30 || changed)
   {
     changed = false;
@@ -294,26 +375,28 @@ void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
 
     text_layer_set_text(tokenLeft, tokenTextLeft);
     text_layer_set_text(tokenRight, tokenTextRight);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "token: %s%s (%d)", tokenTextLeft, tokenTextRight, (int)otp);
     free(tokenTextLeft);
     free(tokenTextRight);
   }
-
+  
   if ((curSeconds>=0) && (curSeconds<30)) {
     text_layer_set_text(ticker, itoa((30-curSeconds),10));
   } else {
     text_layer_set_text(ticker, itoa((60-curSeconds),10));
   }
+  
 }
 
 void handle_init(void) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Start handle_init()");
+  resend_js_data = true;
+  init_finished = false;
+
   // get timezone from persistent storage, if found
-  if ( persist_exists(KEY_TZONE) )
-  {
-    tZone = persist_read_int(KEY_TZONE);
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "tZone read from storage: %d", (int)tZone);
-  }
-  else
+  if ( ! read_tzone_pref() )
     tZone = DEFAULT_TIME_ZONE;
+  
   tZone_orig=tZone ;
   int tokenPosition = 80;
   changed = true;
@@ -370,26 +453,19 @@ void handle_init(void) {
 
   /* init message receiver */
   app_message_register_inbox_received(appmsg_in_received);
-  const uint32_t inbound_size = 64;
-  const uint32_t outbound_size = 64;
+  app_message_register_inbox_dropped(appmsg_dropped);
+  //app_message_register_outbox_sent(out_sent_handler);
+  //app_message_register_outbox_failed(out_failed_handler);
+  const uint32_t inbound_size = 128;
+  const uint32_t outbound_size = 128;
   app_message_open(inbound_size, outbound_size);
-
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "End handle_init()");
 }
 
 void handle_deinit(void) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "deinit called");
-
-  //store timezone in persistence storage if needed
-  if (tZone != tZone_orig) 
-  {
-    if (tZone == DEFAULT_TIME_ZONE) 
-      persist_delete(KEY_TZONE);
-    else 
-    {
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "Wrote tZone value %d to storage", (int)tZone);
-      persist_write_int(KEY_TZONE, tZone);
-    }
-  }
+  
+  store_tzone_pref();
 
   tick_timer_service_unsubscribe();
   text_layer_destroy(label) ;

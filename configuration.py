@@ -66,7 +66,7 @@ appinfo = """{
     "watchface": true
   },
   "appKeys": {
-    "dummy": 0
+    "tZone": 0
   },
   "resources": {
     "media": [
